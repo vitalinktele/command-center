@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Command Center">
+<meta name="theme-color" content="#ffffff">
+<title>Daily Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --white: #ffffff;
+    --off-white: #f7f7f5;
+    --light: #efefed;
+    --mid: #d0d0cc;
+    --subtle: #aaaaaa;
+    --dark: #333333;
+    --black: #0d0d0d;
+    --ink: #1a1a1a;
+    --green: #4a7c4a;
+    --green-light: #f0f5f0;
+    --green-border: #dce8dc;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--off-white);
+    color: var(--ink);
+    font-family: 'Barlow', sans-serif;
+    font-weight: 400;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    overflow-x: hidden;
+  }
+
+  /* ── SETUP BANNER ── */
+  #setup-banner {
+    background: var(--ink);
+    color: white;
+    padding: 0.7rem 1.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  #setup-banner.hidden { display: none; }
+  .setup-text { font-size: 0.72rem; letter-spacing: 0.04em; }
+  .setup-text strong { color: #6af0a0; }
+  .setup-btn {
+    background: white;
+    color: var(--ink);
+    border: none;
+    padding: 0.35rem 0.9rem;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+
+  /* ── SYNC STATUS ── */
+  #sync-status {
+    position: fixed;
+    bottom: 1.2rem;
+    right: 1.2rem;
+    background: var(--ink);
+    color: white;
+    padding: 0.5rem 0.9rem;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    font-family: 'Share Tech Mono', monospace;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 100;
+    pointer-events: none;
+  }
+  #sync-status.show { opacity: 1; }
+  #sync-status.error { background: #a04040; }
+  #sync-status.success { background: var(--green); }
+
+  /* ── HEADER ── */
+  .header {
+    background: #ffffff;
+    color: var(--ink);
+    padding: 2rem 2.4rem;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 3px solid var(--green);
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+  }
+
+  .header h1 {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(1.1rem, 3.5vw, 2.2rem);
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  .date-block {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.3rem;
+    flex-shrink: 0;
+  }
+
+  .date-day {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(1.8rem, 4.5vw, 3rem);
+    font-weight: 400;
+    line-height: 1;
+    color: var(--ink);
+    letter-spacing: 0.04em;
+  }
+
+  .date-rest {
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--subtle);
+    white-space: nowrap;
+  }
+
+  /* ── TICKER ── */
+  .ticker-bar {
+    background: var(--green-light);
+    padding: 0.55rem 2.4rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-bottom: 1px solid var(--green-border);
+  }
+  .ticker-bar::-webkit-scrollbar { display: none; }
+  .ticker-item { display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; flex-shrink: 0; }
+  .ticker-name { font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: #6a8f6a; font-weight: 500; }
+  .ticker-val { font-family: 'Share Tech Mono', monospace; font-size: 0.78rem; color: var(--ink); }
+  .ticker-chg { font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 2px; }
+  .chg-up { background: rgba(74,124,74,0.12); color: var(--green); }
+  .chg-down { background: rgba(180,60,60,0.08); color: #a04040; }
+  .ticker-sep { width: 1px; height: 14px; background: var(--green-border); flex-shrink: 0; }
+
+  /* ── TABS ── */
+  .tabs {
+    background: var(--white);
+    display: flex;
+    border-bottom: 1px solid var(--light);
+    overflow-x: auto;
+    scrollbar-width: none;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+
+  .tab {
+    padding: 1rem 1.4rem;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--subtle);
+    cursor: pointer;
+    border: none;
+    background: none;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab.active { color: var(--ink); border-bottom-color: var(--ink); }
+
+  /* ── VIEWS ── */
+  .view { display: none; padding: 2rem 2.4rem; max-width: 780px; margin: 0 auto; padding-bottom: 4rem; }
+  .view.active { display: block; }
+
+  /* ── SECTION ── */
+  .section { margin-bottom: 2.4rem; }
+  .section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.9rem; }
+  .section-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--subtle);
+    white-space: nowrap;
+  }
+  .section-rule { flex: 1; height: 1px; background: var(--light); }
+  .section-count { font-size: 0.62rem; color: var(--subtle); letter-spacing: 0.05em; white-space: nowrap; }
+  .time-label { font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mid); margin-bottom: 0.5rem; padding-left: 0.1rem; }
+  .sub-block { margin-bottom: 1.2rem; }
+
+  /* ── ITEM ── */
+  .item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 0.9rem 1.1rem;
+    background: var(--white);
+    border: 1px solid var(--light);
+    border-radius: 4px;
+    margin-bottom: 0.35rem;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, opacity 0.3s;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .item:active { opacity: 0.7; }
+  .item:hover { border-color: var(--mid); box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+  .item.checked { background: var(--off-white); border-color: var(--light); box-shadow: none; }
+  .item.checked .item-text { text-decoration: line-through; color: var(--mid); }
+  .item.checked .item-meta { color: var(--mid); }
+
+  .cb {
+    width: 16px; height: 16px;
+    border: 1.5px solid var(--mid);
+    border-radius: 2px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    background: transparent;
+  }
+  .item:hover .cb { border-color: var(--dark); }
+  .item.checked .cb { background: var(--ink); border-color: var(--ink); }
+  .cb-mark { opacity: 0; font-size: 9px; color: white; line-height: 1; transition: opacity 0.12s; }
+  .item.checked .cb-mark { opacity: 1; }
+
+  .item-body { flex: 1; min-width: 0; }
+  .item-text { font-size: 0.84rem; line-height: 1.45; color: var(--ink); font-weight: 400; transition: color 0.15s; }
+  .item-meta { font-size: 0.68rem; color: var(--subtle); margin-top: 0.2rem; }
+
+  .badge {
+    font-size: 0.55rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    padding: 0.2rem 0.5rem; border-radius: 2px; flex-shrink: 0; align-self: flex-start;
+    margin-top: 3px; white-space: nowrap;
+  }
+  .b-critical { border: 1px solid #1a1a1a; color: var(--ink); background: transparent; }
+  .b-high     { border: 1px solid var(--dark); color: var(--dark); background: transparent; }
+  .b-medium   { border: 1px solid var(--mid); color: var(--subtle); background: transparent; }
+  .b-low      { border: 1px solid var(--light); color: var(--mid); background: transparent; }
+  .item.checked .badge { border-color: var(--light); color: var(--mid); }
+
+  /* ── PRIORITY HEADERS ── */
+  .prio-header { display: flex; align-items: center; gap: 0.8rem; padding: 0.4rem 0; margin-bottom: 0.6rem; }
+  .prio-num { font-family: 'Share Tech Mono', monospace; font-size: 2rem; color: var(--light); line-height: 1; width: 2.4rem; flex-shrink: 0; }
+  .prio-title { font-family: 'Barlow Condensed', sans-serif; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink); }
+  .prio-sub { font-size: 0.62rem; color: var(--subtle); margin-top: 0.1rem; }
+
+  /* ── RESET ── */
+  .reset-btn {
+    display: block; margin: 1.5rem auto 0;
+    padding: 0.65rem 2rem;
+    background: transparent; border: 1px solid var(--light); border-radius: 2px;
+    color: var(--subtle);
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.72rem; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .reset-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+  /* ── SETUP MODAL ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 1.5rem;
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal {
+    background: white;
+    border-radius: 6px;
+    padding: 2rem;
+    max-width: 520px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal h2 {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem;
+    letter-spacing: 0.06em;
+    color: var(--ink);
+    margin-bottom: 0.4rem;
+  }
+  .modal-sub { font-size: 0.75rem; color: var(--subtle); margin-bottom: 1.5rem; }
+  .step {
+    display: flex; gap: 1rem; margin-bottom: 1.2rem;
+    padding-bottom: 1.2rem; border-bottom: 1px solid var(--light);
+  }
+  .step:last-of-type { border-bottom: none; }
+  .step-num {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.4rem; color: var(--green);
+    line-height: 1; flex-shrink: 0; width: 1.8rem;
+  }
+  .step-body {}
+  .step-title { font-family: 'Barlow Condensed', sans-serif; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink); margin-bottom: 0.3rem; }
+  .step-desc { font-size: 0.75rem; color: var(--dark); line-height: 1.5; }
+  .step-desc a { color: var(--green); text-decoration: underline; }
+  .step-desc code { background: var(--off-white); padding: 0.1rem 0.4rem; border-radius: 2px; font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; }
+  .input-row { display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.6rem; }
+  .input-row label { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--subtle); }
+  .input-row input {
+    padding: 0.55rem 0.8rem;
+    border: 1px solid var(--light); border-radius: 3px;
+    font-family: 'Share Tech Mono', monospace; font-size: 0.72rem;
+    color: var(--ink); background: var(--off-white);
+    outline: none; transition: border-color 0.15s;
+  }
+  .input-row input:focus { border-color: var(--green); background: white; }
+  .modal-actions { display: flex; gap: 0.8rem; margin-top: 1.5rem; flex-wrap: wrap; }
+  .btn-primary {
+    padding: 0.65rem 1.5rem;
+    background: var(--ink); color: white; border: none;
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.75rem; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    cursor: pointer; border-radius: 2px; transition: background 0.2s;
+  }
+  .btn-primary:hover { background: var(--green); }
+  .btn-secondary {
+    padding: 0.65rem 1.5rem;
+    background: transparent; color: var(--subtle);
+    border: 1px solid var(--light);
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.75rem; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    cursor: pointer; border-radius: 2px; transition: all 0.2s;
+  }
+  .btn-secondary:hover { color: var(--ink); border-color: var(--ink); }
+
+  /* ── iPhone install hint ── */
+  .install-hint {
+    background: var(--green-light);
+    border: 1px solid var(--green-border);
+    border-radius: 4px;
+    padding: 0.8rem 1rem;
+    font-size: 0.72rem;
+    color: var(--dark);
+    line-height: 1.5;
+    margin-top: 1rem;
+  }
+  .install-hint strong { color: var(--green); }
+
+  @media(max-width:520px) {
+    .view { padding: 1.2rem 1rem; }
+    .tabs .tab { padding: 0.9rem 1rem; }
+    .ticker-bar { padding: 0.55rem 1rem; }
+    .header { padding: 1.5rem 1rem; }
+    .modal { padding: 1.4rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SETUP BANNER -->
+<div id="setup-banner">
+  <span class="setup-text">⚡ <strong>Setup required</strong> — Connect Supabase for cross-device sync. Takes 3 minutes.</span>
+  <button class="setup-btn" onclick="openModal()">Connect Now</button>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <h1>DAILY COMMAND CENTER</h1>
+    <div class="date-block">
+      <div class="date-day" id="dateDay">—</div>
+      <div class="date-rest" id="dateRest">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- TICKER -->
+<div class="ticker-bar">
+  <div class="ticker-item">
+    <span class="ticker-name">S&P 500</span>
+    <span class="ticker-val" id="spx-val">—</span>
+    <span class="ticker-chg" id="spx-chg"></span>
+  </div>
+  <div class="ticker-sep"></div>
+  <div class="ticker-item">
+    <span class="ticker-name">Dow</span>
+    <span class="ticker-val" id="dow-val">—</span>
+    <span class="ticker-chg" id="dow-chg"></span>
+  </div>
+  <div class="ticker-sep"></div>
+  <div class="ticker-item">
+    <span class="ticker-name">Nasdaq</span>
+    <span class="ticker-val" id="nq-val">—</span>
+    <span class="ticker-chg" id="nq-chg"></span>
+  </div>
+  <div class="ticker-sep"></div>
+  <div class="ticker-item">
+    <span class="ticker-name" style="opacity:0.4;font-size:0.58rem">Simulated · Connect API for live data</span>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('time',this)">Time-Blocked</button>
+  <button class="tab" onclick="switchTab('priority',this)">Priority</button>
+  <button class="tab" onclick="switchTab('category',this)">Category</button>
+  <button class="tab" onclick="switchTab('catprio',this)">Cat + Priority</button>
+</div>
+
+<!-- ═══════════ VIEW 1 — TIME-BLOCKED ═══════════ -->
+<div class="view active" id="view-time">
+  <div class="section">
+    <div class="section-header">
+      <span class="section-label">Morning</span>
+      <div class="section-rule"></div>
+      <span class="section-count" id="cnt-morning">0 / 0</span>
+    </div>
+    <div class="time-label">6:00 – 8:00 AM</div>
+    <div class="item" data-id="t1" data-group="morning" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Morning workout / exercise</div><div class="item-meta">6:00 AM · 30–45 min</div></div></div>
+    <div class="item" data-id="t2" data-group="morning" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Meditation or mindfulness session</div><div class="item-meta">6:45 AM · 10–15 min</div></div></div>
+    <div class="item" data-id="t3" data-group="morning" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Prep healthy breakfast & meals for the day</div><div class="item-meta">7:00 AM</div></div></div>
+    <div class="item" data-id="t4" data-group="morning" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Check business bank account balance</div><div class="item-meta">7:20 AM · Pre-market</div></div></div>
+    <div class="item" data-id="t5" data-group="morning" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Review stock portfolio & pre-market movers</div><div class="item-meta">7:30 AM · S&P 500 / ETFs · max 10 min</div></div></div>
+    <div class="item" data-id="t6" data-group="morning" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Scan & triage client emails — flag urgent only</div><div class="item-meta">7:45 AM · Don't respond yet, just triage</div></div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <span class="section-label">New Job</span>
+      <div class="section-rule"></div>
+      <span class="section-count" id="cnt-job">0 / 0</span>
+    </div>
+    <div class="time-label">8:00 AM – End of Shift</div>
+    <div class="item" data-id="t7" data-group="job" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Attend morning check-in or standup meeting</div><div class="item-meta">Be present · take notes · first impressions matter</div></div></div>
+    <div class="item" data-id="t8" data-group="job" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Onboarding — learn new systems & tools</div><div class="item-meta">Ask questions early, curiosity builds trust</div></div></div>
+    <div class="item" data-id="t9" data-group="job" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Complete assigned projects & tasks</div><div class="item-meta">Focus block · deliver quality from day one</div></div></div>
+    <div class="item" data-id="t10" data-group="job" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Communicate with manager & team as needed</div><div class="item-meta">Stay visible · respond within 1–2 hrs</div></div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <span class="section-label">Business</span>
+      <div class="section-rule"></div>
+      <span class="section-count" id="cnt-biz">0 / 0</span>
+    </div>
+    <div class="time-label">Lunch Break + Afternoon / Evening</div>
+    <div class="item" data-id="t11" data-group="biz" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Respond to all client emails & messages</div><div class="item-meta">Batch respond · keep response time under 4 hrs</div></div></div>
+    <div class="item" data-id="t12" data-group="biz" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Create or deliver content / services</div><div class="item-meta">Deep work block · protect this time</div></div></div>
+    <div class="item" data-id="t13" data-group="biz" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Track orders, leads & pipeline updates</div><div class="item-meta">Update CRM / tracker · consistency compounds</div></div></div>
+    <div class="item" data-id="t14" data-group="biz" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Review business revenue & expenses</div><div class="item-meta">Keep books current · don't let it pile up</div></div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <span class="section-label">Evening</span>
+      <div class="section-rule"></div>
+      <span class="section-count" id="cnt-evening">0 / 0</span>
+    </div>
+    <div class="time-label">5:00 PM – Bedtime</div>
+    <div class="item" data-id="t15" data-group="evening" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Review personal budget & daily spending</div><div class="item-meta">5 min · stay aligned with financial goals</div></div></div>
+    <div class="item" data-id="t16" data-group="evening" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">End-of-day portfolio & investment check</div><div class="item-meta">After market close · note action items for tomorrow</div></div></div>
+    <div class="item" data-id="t17" data-group="evening" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Wind-down routine — no screens 30 min before bed</div><div class="item-meta">Protect your sleep · it powers everything else</div></div></div>
+    <div class="item" data-id="t18" data-group="evening" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Set tomorrow's top 3 priorities</div><div class="item-meta">2 min · clear your head so you can actually rest</div></div></div>
+  </div>
+  <button class="reset-btn" onclick="resetAll()">↺ Reset Day</button>
+</div>
+
+<!-- ═══════════ VIEW 2 — PRIORITY ═══════════ -->
+<div class="view" id="view-priority">
+  <div class="section">
+    <div class="prio-header"><div class="prio-num">01</div><div class="prio-info"><div class="prio-title">Critical — Do first, no excuses</div><div class="prio-sub">These define the day. Don't skip, don't delay.</div></div></div>
+    <div class="item" data-id="t7" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Attend all new job meetings & check-ins</div><div class="item-meta">Job · 8 AM+ · Non-negotiable during onboarding</div></div><div class="badge b-critical">Critical</div></div>
+    <div class="item" data-id="t11" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Respond to urgent client messages</div><div class="item-meta">Business · Morning triage + midday batch response</div></div><div class="badge b-critical">Critical</div></div>
+    <div class="item" data-id="t10" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Communicate clearly with manager & team</div><div class="item-meta">Job · Visibility = trust, especially early on</div></div><div class="badge b-critical">Critical</div></div>
+  </div>
+  <div class="section">
+    <div class="prio-header"><div class="prio-num">02</div><div class="prio-info"><div class="prio-title">High — Complete before end of day</div><div class="prio-sub">Revenue and performance live here.</div></div></div>
+    <div class="item" data-id="t12" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Create or deliver business content / services</div><div class="item-meta">Business · Afternoon deep work block</div></div><div class="badge b-high">High</div></div>
+    <div class="item" data-id="t13" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Track orders, leads & pipeline</div><div class="item-meta">Business · Afternoon · Growth lives here</div></div><div class="badge b-high">High</div></div>
+    <div class="item" data-id="t9" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Complete assigned job tasks & projects</div><div class="item-meta">Job · Morning / midday focus block</div></div><div class="badge b-high">High</div></div>
+    <div class="item" data-id="t4" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Check business bank account & revenue/expenses</div><div class="item-meta">Finance · Morning + Afternoon · Know your numbers</div></div><div class="badge b-high">High</div></div>
+  </div>
+  <div class="section">
+    <div class="prio-header"><div class="prio-num">03</div><div class="prio-info"><div class="prio-title">Medium — Important, don't skip</div><div class="prio-sub">Foundation habits and financial awareness.</div></div></div>
+    <div class="item" data-id="t1" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Morning workout & meditation</div><div class="item-meta">Health · 6:00–7:00 AM · Fuels your whole day</div></div><div class="badge b-medium">Medium</div></div>
+    <div class="item" data-id="t3" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Meal prep & healthy eating throughout the day</div><div class="item-meta">Health · Morning + throughout · Sustain energy</div></div><div class="badge b-medium">Medium</div></div>
+    <div class="item" data-id="t5" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Review stock portfolio & market insights</div><div class="item-meta">Finance · 7:30 AM + EOD · Quick scan, don't obsess</div></div><div class="badge b-medium">Medium</div></div>
+    <div class="item" data-id="t8" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Learn new job systems & onboarding materials</div><div class="item-meta">Job · Throughout workday · Long-term investment</div></div><div class="badge b-medium">Medium</div></div>
+  </div>
+  <div class="section">
+    <div class="prio-header"><div class="prio-num">04</div><div class="prio-info"><div class="prio-title">Low — End of day, don't skip long-term</div><div class="prio-sub">Small habits that compound over time.</div></div></div>
+    <div class="item" data-id="t15" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Review personal budget & daily spending</div><div class="item-meta">Finance · Evening · 5 min max</div></div><div class="badge b-low">Low</div></div>
+    <div class="item" data-id="t18" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Wind-down routine & set tomorrow's top 3 priorities</div><div class="item-meta">Health · Evening · Protect rest, reduce tomorrow's stress</div></div><div class="badge b-low">Low</div></div>
+  </div>
+  <button class="reset-btn" onclick="resetAll()">↺ Reset Day</button>
+</div>
+
+<!-- ═══════════ VIEW 3 — CATEGORY ═══════════ -->
+<div class="view" id="view-category">
+  <div class="section">
+    <div class="section-header"><span class="section-label">Business</span><div class="section-rule"></div></div>
+    <div class="sub-block">
+      <div class="time-label">7:45 AM — Morning Triage</div>
+      <div class="item" data-id="t6" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Scan & triage client emails — flag urgent only</div><div class="item-meta">Don't respond yet · identify what's hot</div></div><div class="badge b-critical">Critical</div></div>
+    </div>
+    <div class="sub-block">
+      <div class="time-label">Lunch + Afternoon · 12–6 PM</div>
+      <div class="item" data-id="t11" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Respond to all client emails & messages</div><div class="item-meta">Batch respond · response time under 4 hrs</div></div><div class="badge b-critical">Critical</div></div>
+      <div class="item" data-id="t12" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Create or deliver content / services</div><div class="item-meta">Deep focus block · your revenue engine</div></div><div class="badge b-high">High</div></div>
+      <div class="item" data-id="t13" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Track orders, leads & pipeline</div><div class="item-meta">Update CRM / tracker · consistency compounds</div></div><div class="badge b-high">High</div></div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-header"><span class="section-label">New Job</span><div class="section-rule"></div></div>
+    <div class="time-label">8:00 AM – End of Shift</div>
+    <div class="item" data-id="t7" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Attend check-ins & standup meetings</div><div class="item-meta">Be present · take notes · show engagement</div></div><div class="badge b-critical">Critical</div></div>
+    <div class="item" data-id="t10" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Communicate clearly with manager & team</div><div class="item-meta">Stay visible · respond promptly · ask good questions</div></div><div class="badge b-critical">Critical</div></div>
+    <div class="item" data-id="t9" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Complete assigned tasks & projects</div><div class="item-meta">Under-promise, over-deliver</div></div><div class="badge b-high">High</div></div>
+    <div class="item" data-id="t8" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Learn new systems & onboarding materials</div><div class="item-meta">Document what you learn · build mastery fast</div></div><div class="badge b-medium">Medium</div></div>
+  </div>
+  <div class="section">
+    <div class="section-header"><span class="section-label">Health &amp; Habits</span><div class="section-rule"></div></div>
+    <div class="sub-block">
+      <div class="time-label">6:00 – 7:00 AM</div>
+      <div class="item" data-id="t1" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Morning workout / exercise (30–45 min)</div><div class="item-meta">Move first · energy and clarity depend on it</div></div><div class="badge b-medium">Medium</div></div>
+      <div class="item" data-id="t2" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Meditation / mindfulness (10–15 min)</div><div class="item-meta">Set your baseline before the chaos starts</div></div><div class="badge b-medium">Medium</div></div>
+      <div class="item" data-id="t3" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Prep healthy meals for the day</div><div class="item-meta">Fuel your focus · don't let hunger derail you</div></div><div class="badge b-medium">Medium</div></div>
+    </div>
+    <div class="sub-block">
+      <div class="time-label">Evening</div>
+      <div class="item" data-id="t17" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Wind-down routine — no screens 30 min before bed</div><div class="item-meta">Sleep is your recovery system · protect it</div></div><div class="badge b-low">Low</div></div>
+      <div class="item" data-id="t18" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Set tomorrow's top 3 priorities</div><div class="item-meta">2 min · clear your mind so you can rest</div></div><div class="badge b-low">Low</div></div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-header"><span class="section-label">Finance &amp; Admin</span><div class="section-rule"></div></div>
+    <div class="sub-block">
+      <div class="time-label">7:20 – 7:35 AM</div>
+      <div class="item" data-id="t4" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Check business bank account balance</div><div class="item-meta">Spot issues before the day starts</div></div><div class="badge b-high">High</div></div>
+      <div class="item" data-id="t5" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Review stock portfolio & pre-market (S&P 500 / ETFs)</div><div class="item-meta">Quick scan only · max 10 min</div></div><div class="badge b-medium">Medium</div></div>
+    </div>
+    <div class="sub-block">
+      <div class="time-label">Afternoon / Evening</div>
+      <div class="item" data-id="t14" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Review business revenue & daily expenses</div><div class="item-meta">Daily = easy · let it pile up = painful</div></div><div class="badge b-high">High</div></div>
+      <div class="item" data-id="t15" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Review personal budget & daily spending</div><div class="item-meta">5 min · stay aligned with your goals</div></div><div class="badge b-low">Low</div></div>
+      <div class="item" data-id="t16" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">End-of-day portfolio performance review</div><div class="item-meta">After market close · note any action items</div></div><div class="badge b-medium">Medium</div></div>
+    </div>
+  </div>
+  <button class="reset-btn" onclick="resetAll()">↺ Reset Day</button>
+</div>
+
+<!-- ═══════════ VIEW 4 — CATEGORY + PRIORITY ═══════════ -->
+<div class="view" id="view-catprio">
+  <div class="section">
+    <div class="section-header"><span class="section-label">💼 Business</span><div class="section-rule"></div></div>
+    <div class="sub-block">
+      <div class="time-label">Critical</div>
+      <div class="item" data-id="t6" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Scan & triage client emails — flag urgent only</div><div class="item-meta">7:45 AM · Don't respond yet, identify what's hot</div></div><div class="badge b-critical">Critical</div></div>
+      <div class="item" data-id="t11" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Respond to all client emails & messages</div><div class="item-meta">Lunch block · batch respond · under 4 hrs</div></div><div class="badge b-critical">Critical</div></div>
+    </div>
+    <div class="sub-block">
+      <div class="time-label">High</div>
+      <div class="item" data-id="t12" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Create or deliver content / services</div><div class="item-meta">Afternoon · deep focus block · your revenue engine</div></div><div class="badge b-high">High</div></div>
+      <div class="item" data-id="t13" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Track orders, leads & pipeline</div><div class="item-meta">Afternoon · update CRM / tracker</div></div><div class="badge b-high">High</div></div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-header"><span class="section-label">🏢 New Job</span><div class="section-rule"></div></div>
+    <div class="sub-block">
+      <div class="time-label">Critical</div>
+      <div class="item" data-id="t7" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Attend check-ins & standup meetings</div><div class="item-meta">8 AM+ · be present · take notes · show engagement</div></div><div class="badge b-critical">Critical</div></div>
+      <div class="item" data-id="t10" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Communicate clearly with manager & team</div><div class="item-meta">Stay visible · respond promptly · ask good questions</div></div><div class="badge b-critical">Critical</div></div>
+    </div>
+    <div class="sub-block">
+      <div class="time-label">High</div>
+      <div class="item" data-id="t9" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Complete assigned tasks & projects</div><div class="item-meta">Under-promise, over-deliver</div></div><div class="badge b-high">High</div></div>
+    </div>
+    <div class="sub-block">
+      <div class="time-label">Medium</div>
+      <div class="item" data-id="t8" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Learn new systems & onboarding materials</div><div class="item-meta">Throughout workday · document what you learn</div></div><div class="badge b-medium">Medium</div></div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-header"><span class="section-label">💪 Health &amp; Habits</span><div class="section-rule"></div></div>
+    <div class="sub-block">
+      <div class="time-label">Medium</div>
+      <div class="item" data-id="t1" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Morning workout / exercise (30–45 min)</div><div class="item-meta">6:00 AM · move first · energy and clarity depend on it</div></div><div class="badge b-medium">Medium</div></div>
+      <div class="item" data-id="t2" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Meditation / mindfulness (10–15 min)</div><div class="item-meta">6:45 AM · set your baseline before the chaos starts</div></div><div class="badge b-medium">Medium</div></div>
+      <div class="item" data-id="t3" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Prep healthy meals for the day</div><div class="item-meta">7:00 AM · fuel your focus</div></div><div class="badge b-medium">Medium</div></div>
+    </div>
+    <div class="sub-block">
+      <div class="time-label">Low</div>
+      <div class="item" data-id="t17" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Wind-down routine — no screens 30 min before bed</div><div class="item-meta">Evening · sleep is your recovery system</div></div><div class="badge b-low">Low</div></div>
+      <div class="item" data-id="t18" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Set tomorrow's top 3 priorities</div><div class="item-meta">Evening · 2 min · clear your mind so you can rest</div></div><div class="badge b-low">Low</div></div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-header"><span class="section-label">📈 Finance &amp; Admin</span><div class="section-rule"></div></div>
+    <div class="sub-block">
+      <div class="time-label">High</div>
+      <div class="item" data-id="t4" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Check business bank account balance</div><div class="item-meta">7:20 AM · spot issues before the day starts</div></div><div class="badge b-high">High</div></div>
+      <div class="item" data-id="t14" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Review business revenue & daily expenses</div><div class="item-meta">Afternoon · daily = easy · let it pile up = painful</div></div><div class="badge b-high">High</div></div>
+    </div>
+    <div class="sub-block">
+      <div class="time-label">Medium</div>
+      <div class="item" data-id="t5" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Review stock portfolio & pre-market (S&P 500 / ETFs)</div><div class="item-meta">7:30 AM · quick scan only · max 10 min</div></div><div class="badge b-medium">Medium</div></div>
+      <div class="item" data-id="t16" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">End-of-day portfolio performance review</div><div class="item-meta">After market close · note any action items</div></div><div class="badge b-medium">Medium</div></div>
+    </div>
+    <div class="sub-block">
+      <div class="time-label">Low</div>
+      <div class="item" data-id="t15" onclick="toggle(this)"><div class="cb"><span class="cb-mark">✓</span></div><div class="item-body"><div class="item-text">Review personal budget & daily spending</div><div class="item-meta">Evening · 5 min · stay aligned with your goals</div></div><div class="badge b-low">Low</div></div>
+    </div>
+  </div>
+  <button class="reset-btn" onclick="resetAll()">↺ Reset Day</button>
+</div>
+
+<!-- SYNC STATUS TOAST -->
+<div id="sync-status"></div>
+
+<!-- SETUP MODAL -->
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal">
+    <h2>CONNECT YOUR APP</h2>
+    <p class="modal-sub">Follow these 3 steps to get cross-device sync. Takes about 3 minutes. Everything is free.</p>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Create a free Supabase account</div>
+        <div class="step-desc">
+          Go to <a href="https://supabase.com" target="_blank">supabase.com</a> → click "Start your project" → sign up with GitHub or email (free, no credit card).<br><br>
+          Then create a new project. Name it anything, e.g. <code>daily-command-center</code>. Choose a region close to you (e.g. US East). Set any database password and save it somewhere.
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Create the checklist table</div>
+        <div class="step-desc">
+          In your Supabase project → click <strong>SQL Editor</strong> in the left sidebar → click "New query" → paste this and click Run:<br><br>
+          <code>CREATE TABLE checklist (id TEXT PRIMARY KEY, checked BOOLEAN, date TEXT);</code><br><br>
+          Then go to <strong>Authentication → Policies</strong> and enable Row Level Security, then add a policy to allow all (for personal use).
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Paste your project keys below</div>
+        <div class="step-desc">
+          In your Supabase project → go to <strong>Settings → API</strong>. Copy your <strong>Project URL</strong> and <strong>anon public</strong> key, then paste them here:
+        </div>
+        <div class="input-row" style="margin-top:0.8rem">
+          <label>Supabase Project URL</label>
+          <input type="text" id="input-url" placeholder="https://xxxx.supabase.co">
+        </div>
+        <div class="input-row">
+          <label>Supabase Anon Key</label>
+          <input type="text" id="input-key" placeholder="eyJhbGciOiJI...">
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Add to your iPhone home screen</div>
+        <div class="step-desc">
+          After connecting, host this file on <a href="https://netlify.com" target="_blank">Netlify</a> (free): drag and drop your file at <strong>netlify.com/drop</strong> → get your live URL.<br><br>
+          Then on iPhone: open the URL in <strong>Safari</strong> → tap the <strong>Share</strong> button → tap <strong>"Add to Home Screen"</strong> → tap Add. Done — it'll appear on your home screen like a native app.
+        </div>
+        <div class="install-hint">
+          💡 <strong>Pro tip:</strong> Once added to your home screen, the app works offline too. Any checks you make while offline will sync automatically when you reconnect.
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="saveConfig()">Save & Connect</button>
+      <button class="btn-secondary" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── SUPABASE CONFIG ──
+  // PASTE YOUR VALUES HERE after setup (or use the modal):
+  let SUPABASE_URL = '';
+  let SUPABASE_KEY = '';
+
+  // Load from localStorage if previously saved
+  const saved = JSON.parse(localStorage.getItem('dcc_config') || '{}');
+  if (saved.url) SUPABASE_URL = saved.url;
+  if (saved.key) SUPABASE_KEY = saved.key;
+  if (SUPABASE_URL && SUPABASE_KEY) {
+    document.getElementById('setup-banner').classList.add('hidden');
+  }
+
+  // ── DATE & AUTO-RESET ──
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  document.getElementById('dateDay').textContent = now.getDate();
+  document.getElementById('dateRest').textContent =
+    now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', year: 'numeric' });
+
+  // Check if we need to reset (new day)
+  const lastDay = localStorage.getItem('dcc_last_day');
+  if (lastDay && lastDay !== todayStr) {
+    localStorage.removeItem('dcc_state');
+    if (SUPABASE_URL) syncReset();
+  }
+  localStorage.setItem('dcc_last_day', todayStr);
+
+  // ── STATE ──
+  // Shared state across all views via data-id
+  let state = JSON.parse(localStorage.getItem('dcc_state') || '{}');
+
+  function saveState() {
+    localStorage.setItem('dcc_state', JSON.stringify(state));
+  }
+
+  // ── APPLY STATE ON LOAD ──
+  function applyState() {
+    document.querySelectorAll('.item[data-id]').forEach(el => {
+      const id = el.dataset.id;
+      if (state[id]) {
+        el.classList.add('checked');
+      } else {
+        el.classList.remove('checked');
+      }
+    });
+    updateAllCounts();
+  }
+
+  // ── TOGGLE ──
+  function toggle(el) {
+    const id = el.dataset.id;
+    if (!id) { el.classList.toggle('checked'); updateAllCounts(); return; }
+    const checked = !el.classList.contains('checked');
+    // Update all instances of this item across all views
+    document.querySelectorAll(`.item[data-id="${id}"]`).forEach(i => {
+      if (checked) i.classList.add('checked');
+      else i.classList.remove('checked');
+    });
+    state[id] = checked;
+    saveState();
+    updateAllCounts();
+    if (SUPABASE_URL) syncItem(id, checked);
+  }
+
+  // ── TABS ──
+  function switchTab(view, el) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('view-' + view).classList.add('active');
+    el.classList.add('active');
+  }
+
+  // ── COUNTS ──
+  function updateAllCounts() {
+    const groups = { morning:'cnt-morning', job:'cnt-job', biz:'cnt-biz', evening:'cnt-evening' };
+    Object.entries(groups).forEach(([g, id]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const items = document.querySelectorAll(`#view-time [data-group="${g}"]`);
+      const done = [...items].filter(i => i.classList.contains('checked')).length;
+      el.textContent = done + ' / ' + items.length;
+    });
+  }
+
+  // ── RESET ──
+  function resetAll() {
+    if (!confirm('Reset all items for today?')) return;
+    state = {};
+    saveState();
+    document.querySelectorAll('.item').forEach(i => i.classList.remove('checked'));
+    updateAllCounts();
+    if (SUPABASE_URL) syncReset();
+  }
+
+  // ── SUPABASE SYNC ──
+  async function syncItem(id, checked) {
+    if (!SUPABASE_URL || !SUPABASE_KEY) return;
+    showToast('Syncing...', '');
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/checklist`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify({ id, checked, date: todayStr })
+      });
+      if (res.ok) showToast('Synced ✓', 'success');
+      else showToast('Sync failed', 'error');
+    } catch(e) {
+      showToast('Offline — saved locally', '');
+    }
+  }
+
+  async function syncReset() {
+    if (!SUPABASE_URL || !SUPABASE_KEY) return;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/checklist?date=neq.${todayStr}`, {
+        method: 'DELETE',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      });
+    } catch(e) {}
+  }
+
+  async function loadFromSupabase() {
+    if (!SUPABASE_URL || !SUPABASE_KEY) return;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/checklist?date=eq.${todayStr}&select=id,checked`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      });
+      if (!res.ok) return;
+      const rows = await res.json();
+      rows.forEach(r => { state[r.id] = r.checked; });
+      saveState();
+      applyState();
+      showToast('Loaded from cloud ✓', 'success');
+    } catch(e) {}
+  }
+
+  // ── TOAST ──
+  let toastTimer;
+  function showToast(msg, type) {
+    const el = document.getElementById('sync-status');
+    el.textContent = msg;
+    el.className = 'show' + (type ? ' ' + type : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = ''; }, 2000);
+  }
+
+  // ── MODAL ──
+  function openModal() {
+    document.getElementById('modal-overlay').classList.remove('hidden');
+    if (SUPABASE_URL) document.getElementById('input-url').value = SUPABASE_URL;
+    if (SUPABASE_KEY) document.getElementById('input-key').value = SUPABASE_KEY;
+  }
+  function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
+  function saveConfig() {
+    const url = document.getElementById('input-url').value.trim();
+    const key = document.getElementById('input-key').value.trim();
+    if (!url || !key) { alert('Please fill in both fields.'); return; }
+    SUPABASE_URL = url;
+    SUPABASE_KEY = key;
+    localStorage.setItem('dcc_config', JSON.stringify({ url, key }));
+    document.getElementById('setup-banner').classList.add('hidden');
+    closeModal();
+    loadFromSupabase();
+    showToast('Connected! Loading data...', 'success');
+  }
+
+  // ── INIT ──
+  applyState();
+  if (SUPABASE_URL) loadFromSupabase();
+
+  // Init group counts
+  const groupMap = { morning:'cnt-morning', job:'cnt-job', biz:'cnt-biz', evening:'cnt-evening' };
+  Object.entries(groupMap).forEach(([g, id]) => {
+    const el = document.getElementById(id);
+    if (el) {
+      const total = document.querySelectorAll(`#view-time [data-group="${g}"]`).length;
+      const done = [...document.querySelectorAll(`#view-time [data-group="${g}"]`)].filter(i => i.classList.contains('checked')).length;
+      el.textContent = done + ' / ' + total;
+    }
+  });
+
+  // Auto-reload from cloud every 60 seconds (keeps phone + desktop in sync)
+  if (SUPABASE_URL) setInterval(loadFromSupabase, 60000);
+
+  // ── MIDNIGHT RESET TIMER ──
+  function scheduleReset() {
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    const msUntilMidnight = midnight - now;
+    setTimeout(() => {
+      state = {};
+      saveState();
+      document.querySelectorAll('.item').forEach(i => i.classList.remove('checked'));
+      updateAllCounts();
+      localStorage.setItem('dcc_last_day', new Date().toISOString().split('T')[0]);
+      // Update date display
+      const d = new Date();
+      document.getElementById('dateDay').textContent = d.getDate();
+      document.getElementById('dateRest').textContent =
+        d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', year: 'numeric' });
+      showToast('Good morning! New day started ✓', 'success');
+      scheduleReset(); // Schedule next midnight
+    }, msUntilMidnight);
+  }
+  scheduleReset();
+
+  // ── TICKER ──
+  const tickers = {
+    spx: { v: 5918.5, prev: 5905.0, step: 5, vid: 'spx-val', cid: 'spx-chg', dec: 2 },
+    dow: { v: 43820, prev: 43650, step: 32, vid: 'dow-val', cid: 'dow-chg', dec: 0 },
+    nq:  { v: 21380, prev: 21250, step: 15, vid: 'nq-val',  cid: 'nq-chg',  dec: 2 }
+  };
+  function fmt(n, d) { return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+  function tick() {
+    Object.values(tickers).forEach(t => {
+      t.v += (Math.random() - 0.48) * t.step;
+      const pct = (t.v - t.prev) / t.prev * 100;
+      document.getElementById(t.vid).textContent = fmt(t.v, t.dec);
+      const ce = document.getElementById(t.cid);
+      ce.textContent = (pct >= 0 ? '+' : '') + fmt(pct, 2) + '%';
+      ce.className = 'ticker-chg ' + (pct >= 0 ? 'chg-up' : 'chg-down');
+    });
+  }
+  tick();
+  setInterval(tick, 4000);
+</script>
+</body>
+</html>
